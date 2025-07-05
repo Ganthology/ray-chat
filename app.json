@@ -1,22 +1,24 @@
 {
   "expo": {
-    "name": "r3chat",
-    "slug": "r3chat",
+    "name": "ray-chat",
+    "slug": "ray-chat",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "r3chat",
+    "scheme": "ray-chat",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.raychat"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.raychat"
     },
     "web": {
       "bundler": "metro",
