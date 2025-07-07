@@ -6,85 +6,72 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 
+import { AttachmentType } from "../components/AttachButton";
+import ChatInput from "../components/ChatInput";
 import { EmptyResponseBodyError } from "ai";
+import MessageBubble from "../components/MessageBubble";
+import { ModelOption } from "../components/ModelSelector";
+import ModelSelectionBottomSheet from "../components/ModelSelectionBottomSheet";
+import React from "react";
 import { StatusBar } from "expo-status-bar";
+import Toolbar from "../components/Toolbar";
 import { fetch as expoFetch } from "expo/fetch";
+// Import custom components
 import { useChat } from "@ai-sdk/react";
-
-// Message component for clean separation of concerns
-const MessageBubble = ({
-  message,
-  isUser,
-}: {
-  message: string;
-  isUser: boolean;
-}) => (
-  <View
-    style={[
-      styles.messageBubble,
-      isUser ? styles.userMessage : styles.aiMessage,
-    ]}
-  >
-    <Text
-      style={[
-        styles.messageText,
-        isUser ? styles.userMessageText : styles.aiMessageText,
-      ]}
-    >
-      {message}
-    </Text>
-  </View>
-);
-
-// Chat input component
-const ChatInput = ({
-  input,
-  handleInputChange,
-  handleSubmit,
-  isLoading,
-}: {
-  input: string;
-  handleInputChange: (text: string) => void;
-  handleSubmit: () => void;
-  isLoading: boolean;
-}) => (
-  <View style={styles.inputContainer}>
-    <TextInput
-      style={styles.textInput}
-      value={input}
-      onChangeText={handleInputChange}
-      placeholder="Type your message..."
-      placeholderTextColor="#999"
-      multiline
-      maxLength={1000}
-      editable={!isLoading}
-    />
-    <TouchableOpacity
-      style={[styles.sendButton, isLoading && styles.sendButtonDisabled]}
-      onPress={handleSubmit}
-      disabled={!input.trim() || isLoading}
-    >
-      <Text style={styles.sendButtonText}>{isLoading ? "..." : "Send"}</Text>
-    </TouchableOpacity>
-  </View>
-);
 
 const API_URL = "https://faithful-gelding-vaguely.ngrok-free.app";
 
+// Available models configuration
+const AVAILABLE_MODELS: ModelOption[] = [
+  {
+    id: "gpt-4",
+    name: "GPT-4",
+    description: "Most capable model for complex tasks",
+  },
+  {
+    id: "gpt-4-turbo",
+    name: "GPT-4 Turbo",
+    description: "Faster version of GPT-4 with updated knowledge",
+  },
+  {
+    id: "gpt-3.5-turbo",
+    name: "GPT-3.5 Turbo",
+    description: "Fast and efficient for most conversations",
+  },
+  {
+    id: "claude-3-sonnet",
+    name: "Claude 3 Sonnet",
+    description: "Balanced performance and capability",
+  },
+  {
+    id: "claude-3-haiku",
+    name: "Claude 3 Haiku",
+    description: "Fastest model for simple tasks",
+  },
+];
+
 // Main chat component
 export default function ChatScreen() {
+  // State management for toolbar features
+  const [selectedModel, setSelectedModel] = React.useState<ModelOption>(
+    AVAILABLE_MODELS[0]
+  );
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
+  const [isModelSheetVisible, setIsModelSheetVisible] = React.useState(false);
+
   const { messages, input, setInput, handleSubmit, isLoading, error } = useChat(
     {
       fetch: expoFetch as unknown as typeof globalThis.fetch,
       api: `${API_URL}/api/chat`,
+      body: {
+        model: selectedModel.id,
+        webSearch: isWebSearchEnabled,
+      },
       onError: (error: Error) => {
         if (EmptyResponseBodyError.isInstance(error)) {
-          // Handle the error
           Alert.alert("Error", "Empty response body");
           console.log("EmptyResponseBodyError");
           return;
@@ -109,6 +96,52 @@ export default function ChatScreen() {
     }
   };
 
+  const handleModelSelectorPress = () => {
+    setIsModelSheetVisible(true);
+  };
+
+  const handleModelSelect = (model: ModelOption) => {
+    setSelectedModel(model);
+    setIsModelSheetVisible(false);
+    Alert.alert("Model Changed", `Switched to ${model.name}`, [{ text: "OK" }]);
+  };
+
+  const handleModelSheetClose = () => {
+    setIsModelSheetVisible(false);
+  };
+
+  const handleWebSearchToggle = (enabled: boolean) => {
+    setIsWebSearchEnabled(enabled);
+    const status = enabled ? "enabled" : "disabled";
+    Alert.alert("Web Search", `Web search ${status}`, [{ text: "OK" }]);
+  };
+
+  const handleAttach = (attachmentType: AttachmentType) => {
+    // Handle different attachment types
+    switch (attachmentType) {
+      case AttachmentType.PHOTO:
+        Alert.alert("Photo", "Photo library attachment coming soon!", [
+          { text: "OK" },
+        ]);
+        break;
+      case AttachmentType.CAMERA:
+        Alert.alert("Camera", "Camera capture coming soon!", [{ text: "OK" }]);
+        break;
+      case AttachmentType.DOCUMENT:
+        Alert.alert("Document", "Document attachment coming soon!", [
+          { text: "OK" },
+        ]);
+        break;
+      case AttachmentType.AUDIO:
+        Alert.alert("Audio", "Audio recording coming soon!", [{ text: "OK" }]);
+        break;
+      default:
+        Alert.alert("Attachment", "Attachment feature coming soon!", [
+          { text: "OK" },
+        ]);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -116,7 +149,10 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Ray Chat</Text>
-        <Text style={styles.headerSubtitle}>AI Assistant</Text>
+        <Text style={styles.headerSubtitle}>
+          {selectedModel.name} •{" "}
+          {isWebSearchEnabled ? "Web Search ON" : "Web Search OFF"}
+        </Text>
       </View>
 
       {/* Messages */}
@@ -137,11 +173,21 @@ export default function ChatScreen() {
         </View>
       )}
 
-      {/* Input area */}
+      {/* Input area with toolbar */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
+        {/* Toolbar */}
+        <Toolbar
+          selectedModel={selectedModel}
+          onModelSelectorPress={handleModelSelectorPress}
+          isWebSearchEnabled={isWebSearchEnabled}
+          onWebSearchToggle={handleWebSearchToggle}
+          onAttach={handleAttach}
+        />
+
+        {/* Chat Input */}
         <ChatInput
           input={input}
           handleInputChange={(text) => setInput(text)}
@@ -149,6 +195,15 @@ export default function ChatScreen() {
           isLoading={isLoading}
         />
       </KeyboardAvoidingView>
+
+      {/* Model Selection Bottom Sheet - Screen Level */}
+      <ModelSelectionBottomSheet
+        isVisible={isModelSheetVisible}
+        selectedModel={selectedModel}
+        models={AVAILABLE_MODELS}
+        onModelSelect={handleModelSelect}
+        onClose={handleModelSheetClose}
+      />
     </SafeAreaView>
   );
 }
@@ -183,38 +238,6 @@ const styles = StyleSheet.create({
   messagesContainer: {
     paddingVertical: 16,
   },
-  messageBubble: {
-    maxWidth: "80%",
-    marginVertical: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
-  },
-  userMessage: {
-    backgroundColor: "#007AFF",
-    alignSelf: "flex-end",
-    borderBottomRightRadius: 8,
-  },
-  aiMessage: {
-    backgroundColor: "#fff",
-    alignSelf: "flex-start",
-    borderBottomLeftRadius: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  userMessageText: {
-    color: "#fff",
-  },
-  aiMessageText: {
-    color: "#333",
-  },
   loadingContainer: {
     paddingHorizontal: 20,
     paddingVertical: 8,
@@ -224,42 +247,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     fontStyle: "italic",
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-  },
-  textInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    maxHeight: 100,
-    backgroundColor: "#f8f8f8",
-  },
-  sendButton: {
-    backgroundColor: "#007AFF",
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginLeft: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sendButtonDisabled: {
-    backgroundColor: "#ccc",
-  },
-  sendButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
 });
